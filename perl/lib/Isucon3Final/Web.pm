@@ -16,6 +16,7 @@ use HTTP::Date;
 use Path::Tiny;
 use Furl;
 use Cache::Memory::Simple;
+use Log::Minimal;
 
 our $TIMEOUT  = 30;
 our $INTERVAL = 2;
@@ -269,8 +270,31 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
     }
     my $image_id = sha256_hex( $UUID->create );
     my $dir = $self->load_config->{data_dir};
-    File::Copy::copy($upload->path, "$dir/image-new/raw/$image_id.jpg")
-        or $c->halt(500);
+    # IMAGE_S
+    {
+        my $file = $self->crop_square($upload->path, 'jpg');
+        my $data = $self->convert($file, 'jpg', IMAGE_S, IMAGE_S);
+        unlink $file;
+        my $res = $FURL->put($self->load_config->{image_storage} . "/image/S/${image_id}", [], $data);
+        infof('S size image %s', $res->is_success ? 'OK' : 'NG');
+    }
+    # IMAGE_M
+    {
+        my $file = $self->crop_square($upload->path, 'jpg');
+        my $data = $self->convert($file, 'jpg', IMAGE_M, IMAGE_M);
+        unlink $file;
+        my $res = $FURL->put($self->load_config->{image_storage} . "/image/M/${image_id}", [], $data);
+        infof('M size image %s', $res->is_success ? 'OK' : 'NG');
+    }
+    # IMAGE_L
+    {
+        # TODO 加工？
+        open my $in, '<', $upload->path or $c->halt(500);
+        my $data = do { local $/; <$in> };
+        close $in;
+        my $res = $FURL->put($self->load_config->{image_storage} . "/image/L/${image_id}", [], $data);
+        infof('L size image %s', $res->is_success ? 'OK' : 'NG');
+    }
     File::Copy::move($upload->path, "$dir/image/$image_id.jpg")
         or $c->halt(500);
 
