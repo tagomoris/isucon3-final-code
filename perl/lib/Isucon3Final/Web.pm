@@ -15,10 +15,20 @@ use Data::UUID;
 use HTTP::Date;
 use Path::Tiny;
 use Furl;
+use Cache::Memory::Simple;
 
 our $TIMEOUT  = 30;
 our $INTERVAL = 2;
 our $UUID     = Data::UUID->new;
+
+my $conncache = Cache::Memory::Simple->new(size => 10);
+my $FURL = Furl->new(
+    connection_pool => Plack::Util::inline_object(
+        steal => sub{ my $key = $_[0].':'.$_[1]; $conncache->get($key) },
+        push => sub{ my $key = $_[0].':'.$_[1]; $conncache->set($key,$_[2])  }
+    ),
+);
+
 
 use constant {
     ICON_S   => 32,
@@ -196,7 +206,14 @@ get '/icon/:icon' => sub {
           :                ICON_S;
     my $h = $w;
 
-    my $data = $self->convert("$dir/icon/${icon}.png", "png", $w, $h);
+    # convert済みのデータがあればそれを返す
+    my $data;
+    my $res = $FURL->get($self->load_config->{image_storage} . '/icon/' . $size . '/' . "${icon}.jpg");
+    if ($res->is_success) {
+        $data = $res->content;
+    } else {
+        $data = $self->convert("$dir/icon/${icon}.png", "png", $w, $h);
+    }
     $c->res->content_type("image/png");
     $c->res->header("Cache-Control", "max-age=86400");
     $c->res->header("Last-Modified", HTTP::Date::time2str);
@@ -219,6 +236,16 @@ post '/icon' => [qw/ get_user require_user uri_for/] => sub {
     my $dir  = $self->load_config->{data_dir};
     File::Copy::move($file, "$dir/icon/$icon.png")
         or $c->halt(500);
+
+    for my $size ( qw/s m l/ ) {
+        my $w = $size eq "s" ? ICON_S
+            : $size eq "m" ? ICON_M
+                : $size eq "l" ? ICON_L
+                    :                ICON_S;
+        my $h = $w;
+        my $data = $self->convert("$dir/icon/$icon.png", "png", $w, $h);
+        my $res = $FURL->put('http://isu251/icon/'.$size.'/'. $icon .'.png', [], $data);
+    }
 
     $self->dbh->query(
         'UPDATE users SET icon=? WHERE id=?',
@@ -330,7 +357,7 @@ get '/image/:image' => [qw/ get_user /] => sub {
     my $data;
 
     # convert済みのデータがあればそれを返す
-    my $res = Furl->new->get($self->load_config->{image_storage} . '/image/' . uc($size) . '/' . "${image}.jpg");
+    my $res = $FURL->get($self->load_config->{image_storage} . '/image/' . uc($size) . '/' . "${image}.jpg");
     if ($res->is_success) {
         $data = $res->content;
     } else {
