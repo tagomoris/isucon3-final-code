@@ -1,10 +1,19 @@
-requires "Kossy";
+requires "Kossy" => 0.25;
 requires "Digest::SHA";
 requires "DBIx::Sunny";
 requires "JSON::XS";
 requires "JSON::Types";
 requires "Starlet";
 requires "Data::UUID";
+requires "Sys::Sendfile";
+if ( $^O eq 'linux' ) {
+   requires "Linux::Socket::Accept4";
+}
+requires "URL::Encode::XS";
+requires 'HTTP::Parser::XS';
+requires "Proclet";
+requires "Furl";
+requires "Cache::Memory::Simple";
 
 on 'test' => sub {
     requires 'Test::More';
