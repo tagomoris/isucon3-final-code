@@ -23,13 +23,6 @@ our $TIMEOUT  = 30;
 our $INTERVAL = 2;
 our $UUID     = Data::UUID->new;
 
-my $conncache = Cache::Memory::Simple->new(size => 10);
-my $FURL = Furl->new(
-    connection_pool => Plack::Util::inline_object(
-        steal => sub{ my $key = $_[0].':'.$_[1]; $conncache->get($key) },
-        push => sub{ my $key = $_[0].':'.$_[1]; $conncache->set($key,$_[2])  }
-    ),
-);
 
 use constant {
     ICON_S   => 32,
@@ -235,7 +228,7 @@ get '/icon/:icon' => sub {
 
     # convert済みのデータがあればそれを返す
     my $data;
-    my $res = $FURL->get('http://isu251/icon/' . $size . '/' . "${icon}.png");
+    my $res = Furl->new->get('http://isu251/icon/' . $size . '/' . "${icon}.png");
     if ($res->is_success) {
         $data = $res->content;
     } else {
@@ -274,7 +267,7 @@ post '/icon' => [qw/ get_user require_user uri_for/] => sub {
                     :                ICON_S;
         my $h = $w;
         my $data = $self->convert("$dir/icon/$icon.png", "png", $w, $h);
-        my $res = $FURL->put('http://isu251/icon/'.$size.'/'. $icon .'.png', [], $data);
+        my $res = Furl->new->put('http://isu251/icon/'.$size.'/'. $icon .'.png', [], $data);
     }
 
     $self->dbh->query(
@@ -304,7 +297,7 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
         my $file = $self->crop_square($upload->path, 'jpg');
         my $data = $self->convert($file, 'jpg', IMAGE_S, IMAGE_S);
         unlink $file;
-        my $res = $FURL->put($self->load_config->{image_storage} . "/image/S/${image_id}.jpg", [], $data);
+        my $res = Furl->new->put($self->load_config->{image_storage} . "/image/S/${image_id}.jpg", [], $data);
         infof('S size image %s', $res->is_success ? 'OK' : 'NG');
     }
     # IMAGE_M
@@ -312,7 +305,7 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
         my $file = $self->crop_square($upload->path, 'jpg');
         my $data = $self->convert($file, 'jpg', IMAGE_M, IMAGE_M);
         unlink $file;
-        my $res = $FURL->put($self->load_config->{image_storage} . "/image/M/${image_id}.jpg", [], $data);
+        my $res = Furl->new->put($self->load_config->{image_storage} . "/image/M/${image_id}.jpg", [], $data);
         infof('M size image %s', $res->is_success ? 'OK' : 'NG');
     }
     # IMAGE_L
@@ -321,7 +314,7 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
         open my $in, '<', $upload->path or $c->halt(500);
         my $data = do { local $/; <$in> };
         close $in;
-        my $res = $FURL->put($self->load_config->{image_storage} . "/image/L/${image_id}.jpg", [], $data);
+        my $res = Furl->new->put($self->load_config->{image_storage} . "/image/L/${image_id}.jpg", [], $data);
         infof('L size image %s', $res->is_success ? 'OK' : 'NG');
     }
     File::Copy::move($upload->path, "$dir/image/$image_id.jpg")
@@ -410,7 +403,7 @@ get '/image/:image' => [qw/ get_user /] => sub {
     my $data;
 
     # convert済みのデータがあればそれを返す
-    my $res = $FURL->get($self->load_config->{image_storage} . '/image/' . uc($size) . '/' . "${image}.jpg");
+    my $res = Furl->new->get($self->load_config->{image_storage} . '/image/' . uc($size) . '/' . "${image}.jpg");
     if ($res->is_success) {
         $data = $res->content;
     } else {
