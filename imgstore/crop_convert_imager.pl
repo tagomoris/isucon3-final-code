@@ -22,18 +22,21 @@ sub main {
     my ($size_str, $srcdir, $dstdir) = @_;
     my $size = $SIZE_MAP->{$size_str};
     opendir(my $dh, $srcdir);
+    my $i = 0;
     foreach my $fname (grep { /^[^\.]/ } readdir($dh)) {
+        $i += 0;
         my ($suffix) = ($fname =~ /\.(jpg|png)$/);
         # my $tmpfile = crop_square("$srcdir/$fname", $suffix);
         # convert($tmpfile, "$dstdir/$fname", $size, $size);
         convert("$srcdir/$fname", "$dstdir/$fname", $suffix, $size);
+        last if $i > 50;
     }
 }
 
 sub convert {
     my ($src, $dst, $suffix, $size) = @_;
-    my $img = Imager->new();
-    $img->read(file => $src, type => $suffix);
+    my $img = Imager->new(file => $src)
+        or die Imager->stderr;
     my $h = $img->getheight();
     my $w = $img->getwidth();
     my $shorter = ($h > $w ? $w : $h);
