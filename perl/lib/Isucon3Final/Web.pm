@@ -341,8 +341,9 @@ get '/image/:image' => [qw/ get_user /] => sub {
 sub get_following {
     my ($self, $c) = @_;
     my $user = $c->stash->{user};
+warn $user->{id};
     my $following = $self->dbh->select_all(
-        "SELECT users.* FROM follow_map JOIN users ON (follow_map.target=users.id) WHERE follow_map.user = ? ORDER BY follow_map.created_at DESC",
+        "SELECT users.* FROM follow_map JOIN users ON (follow_map.target=users.id) WHERE follow_map.user = ?",
         $user->{id},
     );
     $c->res->header("Cache-Control" => "no-cache");
