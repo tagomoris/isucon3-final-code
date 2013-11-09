@@ -5,6 +5,8 @@
 use strict;
 use warnings;
 use utf8;
+use File::Temp qw/ tempfile /;
+use POSIX qw/ floor /;
 
 my $SIZE_MAP = {
     ICON_S => 32,
