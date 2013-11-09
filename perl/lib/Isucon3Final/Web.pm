@@ -132,6 +132,16 @@ filter 'get_user' => sub {
     };
 };
 
+filter 'uri_for' => sub {
+    my ($app) = @_;
+    sub {
+        my ($self, $c) = @_;
+        $c->stash->{uri_base} = $c->req->uri_for('/');
+        $c->stash->{uri_base} =~ s!/$!!;
+        $app->($self, $c);
+    };
+};
+
 get '/' => sub {
     my ( $self, $c )  = @_;
     open my $fh, "<", "./public/index.html";
@@ -139,7 +149,7 @@ get '/' => sub {
     $c->res->body($html);
 };
 
-post '/signup' => sub {
+post '/signup' => [qw/uri_for/] => sub {
     my ( $self, $c ) = @_;
     my $name = $c->req->param("name");
     if ( $name !~ /\A[0-9a-zA-Z_]{2,16}\z/ ) {
@@ -157,18 +167,18 @@ post '/signup' => sub {
     $c->render_json({
         id      => number $user->{id},
         name    => string $user->{name},
-        icon    => string $c->req->uri_for("/icon/" . $user->{icon}),
+        icon    => string $c->stash->{uri_base} .'/'. $user->{icon},
         api_key => string $user->{api_key},
     });
 };
 
-get '/me' => [qw/ get_user require_user/] => sub {
+get '/me' => [qw/ get_user require_user uri_for/] => sub {
     my ( $self, $c ) = @_;
     my $user = $c->stash->{user};
     $c->render_json({
         id   => number $user->{id},
         name => string $user->{name},
-        icon => string $c->req->uri_for("/icon/" . $user->{icon}),
+        icon => string $c->stash->{uri_base} ."/icon/" . $user->{icon},
     });
 };
 
@@ -194,7 +204,7 @@ get '/icon/:icon' => sub {
     $c->res;
 };
 
-post '/icon' => [qw/ get_user require_user /] => sub {
+post '/icon' => [qw/ get_user require_user uri_for/] => sub {
     my ( $self, $c ) = @_;
     my $user   = $c->stash->{user};
     my $upload = $c->req->uploads->{image};
@@ -215,11 +225,11 @@ post '/icon' => [qw/ get_user require_user /] => sub {
         $icon, $user->{id},
     );
     $c->render_json({
-        icon => string $c->req->uri_for("/icon/" . $icon),
+        icon => string $c->stash->{uri_base} ."/icon/" . $icon,
     });
 };
 
-post '/entry' => [qw/ get_user require_user /] => sub {
+post '/entry' => [qw/ get_user require_user uri_for /] => sub {
     my ($self, $c) = @_;
     my $user   = $c->stash->{user};
     my $upload = $c->req->uploads->{image};
@@ -248,12 +258,12 @@ post '/entry' => [qw/ get_user require_user /] => sub {
     );
     $c->render_json({
         id            => number $entry->{id},
-        image         => string $c->req->uri_for("/image/" . $entry->{image}),
+        image         => string $c->stash->{uri_base} . "/image/" . $entry->{image},
         publish_level => number $entry->{publish_level},
         user => {
             id   => number $user->{id},
             name => string $user->{name},
-            icon => string $c->req->uri_for("/icon/" . $user->{icon}),
+            icon => string $c->stash->{uri_base} . "/icon/" . $user->{icon},
         },
     });
 };
@@ -343,7 +353,7 @@ sub get_following {
     my ($self, $c) = @_;
     my $user = $c->stash->{user};
     my $following = $self->dbh->select_all(
-        "SELECT users.* FROM follow_map JOIN users ON (follow_map.target=users.id) WHERE follow_map.user = ? ORDER BY follow_map.created_at DESC",
+        "SELECT users.* FROM follow_map JOIN users ON (follow_map.target=users.id) WHERE follow_map.user = ?",
         $user->{id},
     );
     $c->res->header("Cache-Control" => "no-cache");
@@ -354,16 +364,16 @@ sub get_following {
                 +{
                     id   => number $u->{id},
                     name => string $u->{name},
-                    icon => string $c->req->uri_for("/icon/" . $u->{icon}),
+                    icon => string $c->stash->{uri_base} . "/icon/" . $u->{icon},
                 };
             } @$following
         ],
     });
 };
 
-get '/follow' => [qw/ get_user require_user /] => \&get_following;
+get '/follow' => [qw/ get_user require_user uri_for /] => \&get_following;
 
-post '/follow' => [qw/ get_user require_user /] => sub {
+post '/follow' => [qw/ get_user require_user uri_for /] => sub {
     my ($self, $c) = @_;
     my $user = $c->stash->{user};
     for my $target ( $c->req->param("target") ) {
@@ -376,7 +386,7 @@ post '/follow' => [qw/ get_user require_user /] => sub {
     get_following($self, $c);
 };
 
-post '/unfollow' => [qw/ get_user require_user /] => sub {
+post '/unfollow' => [qw/ get_user require_user uri_for /] => sub {
     my ($self, $c) = @_;
     my $user = $c->stash->{user};
     for my $target ( $c->req->param("target") ) {
@@ -389,50 +399,43 @@ post '/unfollow' => [qw/ get_user require_user /] => sub {
     get_following($self, $c);
 };
 
-get '/timeline' => [qw/ get_user require_user /] => sub {
+get '/timeline' => [qw/ get_user require_user uri_for /] => sub {
     my ($self, $c) = @_;
     my $user = $c->stash->{user};
     my $latest_entry = $c->req->param("latest_entry");
     my ($sql, @params);
+    my $sort;
     if ($latest_entry) {
-        $sql = 'SELECT * FROM (SELECT * FROM entries WHERE (user=? OR publish_level=2 OR (publish_level=1 AND user IN (SELECT target FROM follow_map WHERE user=?))) AND id > ? ORDER BY id LIMIT 30) AS e ORDER BY e.id DESC';
+        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE (entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?))) AND entries.id > ? ORDER BY id LIMIT 30';
         @params = ($user->{id}, $user->{id}, $latest_entry);
+        $sort = 1;
     }
     else {
-        $sql = 'SELECT * FROM entries WHERE (user=? OR publish_level=2 OR (publish_level=1 AND user IN (SELECT target FROM follow_map WHERE user=?))) ORDER BY id DESC LIMIT 30';
+        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?)) ORDER BY entries.id DESC LIMIT 30';
         @params = ($user->{id}, $user->{id});
     }
-    my $start = time;
-    my @entries;
-    while ( time - $start < $TIMEOUT ) {
-        my $entries = $self->dbh->select_all($sql, @params);
-        if (@$entries == 0) {
-            sleep $INTERVAL;
-            next;
-        }
-        else {
-            @entries = @$entries;
-            $latest_entry = $entries[0]->{id};
-            last;
-        }
+
+    my $entries = $self->dbh->select_all($sql, @params);
+    my @entries = @$entries;
+    if ( $sort ) {
+        @entries = reverse @entries;
     }
+    $latest_entry = $entries[0]->{id} if @entries;
+
     $c->res->header("Cache-Control" => "no-cache");
     $c->render_json({
         latest_entry => number $latest_entry,
         entries => [
             map {
                 my $entry = $_;
-                my $user  = $self->dbh->select_row(
-                    "SELECT * FROM users WHERE id=?", $entry->{user},
-                );
                 +{
                     id         => number $entry->{id},
-                    image      => string $c->req->uri_for("/image/" . $entry->{image}),
+                    image      => string $c->stash->{uri_base} ."/image/" . $entry->{image},
                     publish_level => number $entry->{publish_level},
                     user => {
-                        id   => number $user->{id},
-                        name => string $user->{name},
-                        icon => string $c->req->uri_for("/icon/" . $user->{icon}),
+                        id   => number $entry->{user_id},
+                        name => string $entry->{user_name},
+                        icon => string $c->stash->{uri_base} ."/icon/" . $entry->{user_icon},
                     },
                 }
             } @entries
