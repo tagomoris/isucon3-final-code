@@ -208,7 +208,7 @@ get '/icon/:icon' => sub {
 
     # convert済みのデータがあればそれを返す
     my $data;
-    my $res = $FURL->get($self->load_config->{image_storage} . '/icon/' . $size . '/' . "${icon}.jpg");
+    my $res = $FURL->get($self->load_config->{image_storage} . '/icon/' . $size . '/' . "${icon}.png");
     if ($res->is_success) {
         $data = $res->content;
     } else {
@@ -239,8 +239,8 @@ post '/icon' => [qw/ get_user require_user uri_for/] => sub {
 
     for my $size ( qw/s m l/ ) {
         my $w = $size eq "s" ? ICON_S
-            : $size eq "m" ? ICON_M
-                : $size eq "l" ? ICON_L
+              : $size eq "m" ? ICON_M
+              : $size eq "l" ? ICON_L
                     :                ICON_S;
         my $h = $w;
         my $data = $self->convert("$dir/icon/$icon.png", "png", $w, $h);
