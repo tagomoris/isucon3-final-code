@@ -197,9 +197,6 @@ get '/icon/:icon' => sub {
     my $icon = $c->args->{icon};
     my $size = $c->req->param("size") || "s";
     my $dir  = $self->load_config->{data_dir};
-    if ( ! -e "$dir/icon/${icon}.png" ) {
-        $c->halt(404);
-    }
     my $w = $size eq "s" ? ICON_S
           : $size eq "m" ? ICON_M
           : $size eq "l" ? ICON_L
@@ -208,10 +205,13 @@ get '/icon/:icon' => sub {
 
     # convert済みのデータがあればそれを返す
     my $data;
-    my $res = $FURL->get($self->load_config->{image_storage} . '/icon/' . $size . '/' . "${icon}.png");
+    my $res = $FURL->get('http://isu251/icon/' . $size . '/' . "${icon}.png");
     if ($res->is_success) {
         $data = $res->content;
     } else {
+        if ( ! -e "$dir/icon/${icon}.png" ) {
+            $c->halt(404);
+        }
         $data = $self->convert("$dir/icon/${icon}.png", "png", $w, $h);
     }
     $c->res->content_type("image/png");
