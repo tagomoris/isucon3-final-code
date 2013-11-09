@@ -44,7 +44,7 @@ sub convert_imager {
     my ($src, $size) = @_;
     my ($suffix) = ($src =~ /\.(jpg|png)$/);
     my $img = Imager->new(file => $src)
-        or die Imager->stderr;
+        or die Imager->errstr;
     my $h = $img->getheight();
     my $w = $img->getwidth();
     my $shorter = ($h > $w ? $w : $h);
