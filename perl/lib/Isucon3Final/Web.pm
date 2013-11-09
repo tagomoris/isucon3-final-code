@@ -385,12 +385,12 @@ get '/timeline' => [qw/ get_user require_user /] => sub {
     my ($sql, @params);
     my $sort;
     if ($latest_entry) {
-        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE (entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?))) AND etries.id > ? ORDER BY id LIMIT 30';
+        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE (entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?))) AND entries.id > ? ORDER BY id LIMIT 30';
         @params = ($user->{id}, $user->{id}, $latest_entry);
         $sort = 1;
     }
     else {
-        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?)) ORDER BY entries.id DESC LIMIT 30'
+        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?)) ORDER BY entries.id DESC LIMIT 30';
         @params = ($user->{id}, $user->{id});
     }
 
