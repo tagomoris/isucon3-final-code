@@ -15,6 +15,7 @@ requires "Proclet";
 requires "Furl";
 requires "Cache::Memory::Simple";
 requires "Imager";
+requires "Imager::File::JPEG";
 
 on 'test' => sub {
     requires 'Test::More';
