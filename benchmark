@@ -1,0 +1,28 @@
+#!/usr/bin/perl
+use strict;
+use LWP::UserAgent;
+use Getopt::Long;
+my $target;
+my $workload = 1;
+GetOptions(
+    "target=s"   => \$target,
+    "workload=i" => \$workload,
+);
+unless ($target) {
+    print "$0 -w [workload] -t 1,2,3\n";
+    print "  -w : workload (1..20)\n";
+    print "  -t : target host id (1..5 comma separated)\n";
+    exit 1;
+}
+
+my @target = split /,/, $target;
+my @params = ( workload => $workload );
+for my $t (@target) {
+    push @params, ( target => $t );
+}
+my $ua = LWP::UserAgent->new;
+my $res = $ua->post(
+    "http://10.11.9.3/benchmark",
+    \@params,
+);
+print $res->content, "\n";
