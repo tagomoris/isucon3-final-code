@@ -17,6 +17,7 @@ use Path::Tiny;
 use Furl;
 use Cache::Memory::Simple;
 use Log::Minimal;
+use Imager;
 
 our $TIMEOUT  = 30;
 our $INTERVAL = 2;
@@ -30,7 +31,6 @@ my $FURL = Furl->new(
     ),
 );
 
-
 use constant {
     ICON_S   => 32,
     ICON_M   => 64,
@@ -39,6 +39,35 @@ use constant {
     IMAGE_M  => 256,
     IMAGE_L  => undef,
 };
+
+sub convert_imager {
+    my ($src, $size) = @_;
+    my ($suffix) = ($src =~ /\.(jpg|png)$/);
+    my $img = Imager->new(file => $src)
+        or die Imager->stderr;
+    my $h = $img->getheight();
+    my $w = $img->getwidth();
+    my $shorter = ($h > $w ? $w : $h);
+    my $offset = floor(abs($h - $w) / 2);
+    my $cropped;
+    if ($h > $w) {
+        $cropped = $img->crop(top => $offset, left => 0, width => $shorter, height => $shorter);
+    } else {
+        $cropped = $img->crop(top => 0, left => $offset, width => $shorter, height => $shorter);
+    }
+    my $resized = $cropped->scale(xpixels => $size, ypixels => $size);
+
+    my ($fh, $filename) = tempfile();
+    my $newfile = "$filename.$suffix";
+    $resized->write(file => $newfile, type => ($suffix eq "jpg" ? "jpeg" : "png"))
+        or die "failed to write file:" . $resized->errstr;
+    open my $newfh, "<", $newfile or die $!;
+    read $newfh, my $data, -s $newfile;
+    close $newfh;
+    unlink $newfile;
+    unlink $filename;
+    $data;
+}
 
 sub convert {
     my $self = shift;
@@ -387,9 +416,7 @@ get '/image/:image' => [qw/ get_user /] => sub {
     } else {
         # 無ければ初期実装通りにconvertして返す
         if ($w) {
-            my $file = $self->crop_square("$dir/image/${image}.jpg", "jpg");
-            $data = $self->convert($file, "jpg", $w, $h);
-            unlink $file;
+            $data = $self->convert_imager($file, ($h > $w ? $w : $h));
         } else {
             open my $in, "<", "$dir/image/${image}.jpg" or $c->halt(500);
             $data = do { local $/; <$in> };
