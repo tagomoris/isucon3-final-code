@@ -45,7 +45,8 @@ sub convert {
         $cropped = $img->crop(top => 0, left => $offset, width => $shorter, height => $shorter);
     }
     my $resized = $cropped->scale(xpixels => $size, ypixels => $size);
-    $resized->write($dst);
+    $resized->write(file => $dst, type => ($suffix eq "jpg" ? "jpeg" : "png"))
+        or die "failed to write file:" . $resized->errstr;
 }
 
 main(@ARGV);
