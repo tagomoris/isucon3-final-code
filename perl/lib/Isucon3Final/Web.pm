@@ -416,7 +416,7 @@ get '/image/:image' => [qw/ get_user /] => sub {
     } else {
         # 無ければ初期実装通りにconvertして返す
         if ($w) {
-            $data = $self->convert_imager($file, ($h > $w ? $w : $h));
+            $data = $self->convert_imager("$dir/image/${image}.jpg", ($h > $w ? $w : $h));
         } else {
             open my $in, "<", "$dir/image/${image}.jpg" or $c->halt(500);
             $data = do { local $/; <$in> };
