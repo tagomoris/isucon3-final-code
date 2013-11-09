@@ -34,6 +34,7 @@ use constant {
 };
 
 sub convert_imager {
+    my $self = shift;
     my ($src, $size) = @_;
     my ($suffix) = ($src =~ /\.(jpg|png)$/);
     my $img = Imager->new(file => $src)
