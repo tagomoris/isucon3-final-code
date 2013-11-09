@@ -304,7 +304,7 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
         my $file = $self->crop_square($upload->path, 'jpg');
         my $data = $self->convert($file, 'jpg', IMAGE_S, IMAGE_S);
         unlink $file;
-        my $res = $FURL->put($self->load_config->{image_storage} . "/image/S/${image_id}", [], $data);
+        my $res = $FURL->put($self->load_config->{image_storage} . "/image/S/${image_id}.jpg", [], $data);
         infof('S size image %s', $res->is_success ? 'OK' : 'NG');
     }
     # IMAGE_M
@@ -312,7 +312,7 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
         my $file = $self->crop_square($upload->path, 'jpg');
         my $data = $self->convert($file, 'jpg', IMAGE_M, IMAGE_M);
         unlink $file;
-        my $res = $FURL->put($self->load_config->{image_storage} . "/image/M/${image_id}", [], $data);
+        my $res = $FURL->put($self->load_config->{image_storage} . "/image/M/${image_id}.jpg", [], $data);
         infof('M size image %s', $res->is_success ? 'OK' : 'NG');
     }
     # IMAGE_L
@@ -321,7 +321,7 @@ post '/entry' => [qw/ get_user require_user uri_for /] => sub {
         open my $in, '<', $upload->path or $c->halt(500);
         my $data = do { local $/; <$in> };
         close $in;
-        my $res = $FURL->put($self->load_config->{image_storage} . "/image/L/${image_id}", [], $data);
+        my $res = $FURL->put($self->load_config->{image_storage} . "/image/L/${image_id}.jpg", [], $data);
         infof('L size image %s', $res->is_success ? 'OK' : 'NG');
     }
     File::Copy::move($upload->path, "$dir/image/$image_id.jpg")
