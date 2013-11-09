@@ -20,8 +20,8 @@ sub main {
     opendir(my $dh, $srcdir);
     foreach my $fname (grep { /^[^\.]/ } readdir($dh)) {
         my ($suffix) = ($fname =~ /\.(jpg|png)$/);
-        my $tmpfile = crop_square("$srcdir$fname", $suffix);
-        convert($tmpfile, "$dstdir$fname", $size, $size);
+        my $tmpfile = crop_square("$srcdir/$fname", $suffix);
+        convert($tmpfile, "$dstdir/$fname", $size, $size);
     }
 }
 
