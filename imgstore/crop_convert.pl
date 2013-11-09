@@ -28,7 +28,6 @@ sub main {
 }
 
 sub crop_square {
-    my $self = shift;
     my ($orig, $ext) = @_;
     my $identity = `identify $orig`; 
     my (undef, undef, $size) = split / +/, $identity;
@@ -56,7 +55,6 @@ sub crop_square {
 }
 
 sub convert {
-    my $self = shift;
     my ($src, $dst, $w, $h) = @_;
     my ($fh, $filename) = tempfile();
     system("convert", "-geometry", "${w}x${h}", $src, $dst);
