@@ -14,7 +14,6 @@ use Plack::TempBuffer;
 use POSIX qw(EINTR EAGAIN EWOULDBLOCK);
 use Socket qw(IPPROTO_TCP TCP_NODELAY);
 use Sys::Sendfile;
-use Linux::Socket::Accept4;
 
 use Try::Tiny;
 use Time::HiRes qw(time);
@@ -24,6 +23,11 @@ use constant CHUNKSIZE        => 64 * 1024;
 use constant MSWin32          => $^O eq 'MSWin32';
 
 my $null_io = do { open my $io, "<", \""; $io };
+
+my $have_accept4 = eval {
+    require Linux::Socket::Accept4;
+    Linux::Socket::Accept4::SOCK_CLOEXEC()|Linux::Socket::Accept4::SOCK_NONBLOCK();
+};
 
 sub new {
     my($class, %args) = @_;
@@ -128,7 +132,13 @@ sub accept_loop {
         my $listen = shift;
         my ($conn,$peer);
         use open 'IO' => ':unix';
-        $peer = accept4($conn, $listen, SOCK_CLOEXEC|SOCK_NONBLOCK);
+        if ( $have_accept4 ) {
+            $peer = Linux::Socket::Accept4::accept4($conn,$listen, $have_accept4);
+        }
+        else {
+            $peer = accept($conn,$listen);
+            fh_nonblocking($conn,1) if $peer;
+        }
         return ($conn, $peer);
     }
     while (! defined $max_reqs_per_child || $proc_req_count < $max_reqs_per_child) {

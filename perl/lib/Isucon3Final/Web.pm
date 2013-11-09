@@ -12,6 +12,7 @@ use File::Temp qw/ tempfile /;
 use POSIX qw/ floor /;
 use File::Copy;
 use Data::UUID;
+use HTTP::Date;
 
 our $TIMEOUT  = 30;
 our $INTERVAL = 2;
@@ -185,6 +186,8 @@ get '/icon/:icon' => sub {
 
     my $data = $self->convert("$dir/icon/${icon}.png", "png", $w, $h);
     $c->res->content_type("image/png");
+    $c->res->header("Cache-Control", "max-age=86400");
+    $c->res->header("Last-Modified", HTTP::Date::time2str);
     $c->res->content( $data );
     $c->res;
 };
