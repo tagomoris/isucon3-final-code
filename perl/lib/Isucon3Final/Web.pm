@@ -14,6 +14,7 @@ use File::Copy;
 use Data::UUID;
 use HTTP::Date;
 use Path::Tiny;
+use Furl;
 
 our $TIMEOUT  = 30;
 our $INTERVAL = 2;
@@ -319,9 +320,9 @@ get '/image/:image' => [qw/ get_user /] => sub {
     my $data;
 
     # convert済みのデータがあればそれを返す
-    my $new_image = path($dir)->child('image-new', $size, "${image}.jpg");
-    if ($new_image->exists) {
-        $data = $new_image->slurp;
+    my $res = Furl->new->get($self->load_config->{image_storage} . '/image/' . uc($size) . '/' . "${image}.jpg");
+    if ($res->is_success) {
+        $data = $res->content;
     } else {
         # 無ければ初期実装通りにconvertして返す
         if ($w) {

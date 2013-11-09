@@ -4,6 +4,7 @@ use warnings;
 
 use File::Basename;
 use File::Temp qw/ tempfile /;
+use Furl;
 use Path::Tiny;
 use POSIX qw/ floor /;
 use Time::HiRes qw/ usleep /;
@@ -18,6 +19,7 @@ use constant {
     IMAGE_L  => undef,
 };
 
+my $furl = Furl->new;
 my $root_dir  = File::Basename::dirname(__FILE__);
 my $image_dir = path($root_dir)->child('data', 'image-new', 'raw');
 $image_dir->parent->child('s')->mkpath;
@@ -33,19 +35,29 @@ while (1) {
             my $file = crop_square($image, 'jpg');
             my $data = convert($file, 'jpg', IMAGE_S, IMAGE_S);
             unlink $file;
-            $image_dir->parent->child('s', $image->basename)->spew($data);
+            my $res = $furl->put('http://isu251/image/S/' . $image->basename, [], $data);
+            infof('S size image %s', $res->is_success ? 'OK' : 'NG');
         }
         # IMAGE_M
         {
             my $file = crop_square($image, 'jpg');
             my $data = convert($file, 'jpg', IMAGE_M, IMAGE_M);
             unlink $file;
-            $image_dir->parent->child('m', $image->basename)->spew($data);
+            my $res = $furl->put('http://isu251/image/M/' . $image->basename, [], $data);
+            infof('M size image %s', $res->is_success ? 'OK' : 'NG');
         }
         # IMAGE_L
         {
-            # 加工
-            $image->move($image_dir->parent->child('l', $image->basename));
+            # TODO 加工？
+            my $res = $furl->put('http://isu251/image/L/' . $image->basename, [], $image->slurp);
+            warn $res->code;
+            warn $res->content;
+            infof('L size image %s', $res->is_success ? 'OK' : 'NG');
+        }
+        # RAW
+        {
+            my $res = $furl->put('http://isu251/image/raw/' . $image->basename, [], $image->slurp);
+            infof('RAW image %s', $res->is_success ? 'OK' : 'NG');
         }
         $image->remove;
     }
