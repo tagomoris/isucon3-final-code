@@ -383,45 +383,38 @@ get '/timeline' => [qw/ get_user require_user /] => sub {
     my $user = $c->stash->{user};
     my $latest_entry = $c->req->param("latest_entry");
     my ($sql, @params);
+    my $sort;
     if ($latest_entry) {
-        $sql = 'SELECT * FROM (SELECT * FROM entries WHERE (user=? OR publish_level=2 OR (publish_level=1 AND user IN (SELECT target FROM follow_map WHERE user=?))) AND id > ? ORDER BY id LIMIT 30) AS e ORDER BY e.id DESC';
+        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE (entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?))) AND etries.id > ? ORDER BY id LIMIT 30';
         @params = ($user->{id}, $user->{id}, $latest_entry);
+        $sort = 1;
     }
     else {
-        $sql = 'SELECT * FROM entries WHERE (user=? OR publish_level=2 OR (publish_level=1 AND user IN (SELECT target FROM follow_map WHERE user=?))) ORDER BY id DESC LIMIT 30';
+        $sql = 'SELECT entries.*,users.id as user_id,users.name as user_name, users.icon as user_icon FROM entries FORCE INDEX(PRIMARY) JOIN users ON (entries.user = users.id) WHERE entries.user=? OR entries.publish_level=2 OR (entries.publish_level=1 AND entries.user IN (SELECT target FROM follow_map WHERE user=?)) ORDER BY entries.id DESC LIMIT 30'
         @params = ($user->{id}, $user->{id});
     }
-    my $start = time;
-    my @entries;
-    while ( time - $start < $TIMEOUT ) {
-        my $entries = $self->dbh->select_all($sql, @params);
-        if (@$entries == 0) {
-            sleep $INTERVAL;
-            next;
-        }
-        else {
-            @entries = @$entries;
-            $latest_entry = $entries[0]->{id};
-            last;
-        }
+
+    my $entries = $self->dbh->select_all($sql, @params);
+    my @entries = @$entries;
+    if ( $sort ) {
+        @entries = reverse @entries;
     }
+    $latest_entry = $entries[0]->{id} if @entries;
+
     $c->res->header("Cache-Control" => "no-cache");
     $c->render_json({
         latest_entry => number $latest_entry,
         entries => [
             map {
                 my $entry = $_;
-                my $user  = $self->dbh->select_row(
-                    "SELECT * FROM users WHERE id=?", $entry->{user},
-                );
                 +{
                     id         => number $entry->{id},
                     image      => string $c->req->uri_for("/image/" . $entry->{image}),
                     publish_level => number $entry->{publish_level},
                     user => {
-                        id   => number $user->{id},
-                        name => string $user->{name},
-                        icon => string $c->req->uri_for("/icon/" . $user->{icon}),
+                        id   => number $entry->{user_id},
+                        name => string $entry->{user_name},
+                        icon => string $c->req->uri_for("/icon/" . $entry->{user_icon}),
                     },
                 }
             } @entries
