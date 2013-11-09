@@ -50,8 +50,6 @@ while (1) {
         {
             # TODO 加工？
             my $res = $furl->put('http://isu251/image/L/' . $image->basename, [], $image->slurp);
-            warn $res->code;
-            warn $res->content;
             infof('L size image %s', $res->is_success ? 'OK' : 'NG');
         }
         # RAW
