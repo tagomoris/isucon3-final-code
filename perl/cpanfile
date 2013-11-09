@@ -14,6 +14,7 @@ requires 'HTTP::Parser::XS';
 requires "Proclet";
 requires "Furl";
 requires "Cache::Memory::Simple";
+requires "Imager";
 
 on 'test' => sub {
     requires 'Test::More';
