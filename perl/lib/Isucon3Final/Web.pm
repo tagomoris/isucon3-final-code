@@ -13,6 +13,7 @@ use POSIX qw/ floor /;
 use File::Copy;
 use Data::UUID;
 use HTTP::Date;
+use Path::Tiny;
 
 our $TIMEOUT  = 30;
 our $INTERVAL = 2;
@@ -230,6 +231,8 @@ post '/entry' => [qw/ get_user require_user /] => sub {
     }
     my $image_id = sha256_hex( $UUID->create );
     my $dir = $self->load_config->{data_dir};
+    File::Copy::copy($upload->path, "$dir/image-new/raw/$image_id.jpg")
+        or $c->halt(500);
     File::Copy::move($upload->path, "$dir/image/$image_id.jpg")
         or $c->halt(500);
 
@@ -314,14 +317,21 @@ get '/image/:image' => [qw/ get_user /] => sub {
           :                IMAGE_L;
     my $h = $w;
     my $data;
-    if ($w) {
-        my $file = $self->crop_square("$dir/image/${image}.jpg", "jpg");
-        $data = $self->convert($file, "jpg", $w, $h);
-        unlink $file;
-    }
-    else {
-        open my $in, "<", "$dir/image/${image}.jpg" or $c->halt(500);
-        $data = do { local $/; <$in> };
+
+    # convert済みのデータがあればそれを返す
+    my $new_image = path($dir)->child('image-new', $size, "${image}.jpg");
+    if ($new_image->exists) {
+        $data = $new_image->slurp;
+    } else {
+        # 無ければ初期実装通りにconvertして返す
+        if ($w) {
+            my $file = $self->crop_square("$dir/image/${image}.jpg", "jpg");
+            $data = $self->convert($file, "jpg", $w, $h);
+            unlink $file;
+        } else {
+            open my $in, "<", "$dir/image/${image}.jpg" or $c->halt(500);
+            $data = do { local $/; <$in> };
+        }
     }
     $c->res->content_type("image/jpeg");
     $c->res->content( $data );

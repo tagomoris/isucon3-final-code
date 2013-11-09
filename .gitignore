@@ -7,4 +7,5 @@ perl/local
 perl/cpanfile.snapshot
 perl/pages
 data/image
+imgstore/image
 *~
