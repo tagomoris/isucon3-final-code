@@ -365,10 +365,10 @@ sub _handle_response {
                 push @lines, "Content-Length: $cl\015\012";
             }
             else {
-                $$use_keepalive_r = push
+                $$use_keepalive_r = undef
             }            
         }
-        undef @lines, "Connection: keep-alive\015\012" if $$use_keepalive_r;
+        push @lines, "Connection: keep-alive\015\012" if $$use_keepalive_r;
         push @lines, "Connection: close\015\012" if !$$use_keepalive_r; #fmm..
     }
     elsif ( $protocol eq 'HTTP/1.1' ) {
